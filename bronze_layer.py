@@ -2,29 +2,16 @@
 from pyspark.sql.types import *
 from pyspark.sql.functions import *
 
-schema = StructType([
-    # StructField("name", StringType(), True),
-    StructField("Date", StringType(), True),
-    StructField("Location", StringType(), True),
-    StructField("PM2.5", FloatType(), True),
-    StructField("PM10", FloatType(), True),
-    StructField("NO2", FloatType(), True),
-    StructField("NH3", FloatType(), True),
-    StructField("SO2", FloatType(), True),
-    StructField("CO", FloatType(), True),
-    StructField("O3", FloatType(), True),
-])
-
 for entity in dbutils.fs.ls("/Volumes/aqi_cat/bronze_schema/bronze_raw/"):
+    if(entity.name == "KA001_new.csv"):
+        continue
     df = (
     spark.read.format("csv")
     .option("header", "true")
-    .schema(schema)
+    .option("inferSchema", "true")
     .load(f"/Volumes/aqi_cat/bronze_schema/bronze_raw/{entity.name}")
     )
 
-    df = df.withColumn("Date", to_date("Date", "dd-MM-yyyy"))
-    
     table_name = entity.name.replace(".csv", "")
     (
         df.write
@@ -35,28 +22,6 @@ for entity in dbutils.fs.ls("/Volumes/aqi_cat/bronze_schema/bronze_raw/"):
 
     df.show(5)
 
-
-
-# inferSchema la define krr dar 
-
-# from delta.tables import DeltaTable
-# delta_table = DeltaTable.forName(spark, "aqi_cat.bronze_schema.bengaluru_bronze")
-# history_df = delta_table.history()  # default shows all commits
-# display(history_df)
-
-# SELECT * FROM aqi_cat.bronze_schema.bengaluru_bronze VERSION AS OF 2;
-
-# COMMAND ----------
-
-daqi = (
-    spark.read.format("csv")
-    .option("header", "true")
-    .option("inferSchema", "true")
-    .load(f"/Volumes/aqi_cat/bronze_schema/bronze_raw/AQI_pollution_type.csv")
-    )
-
-daqi.show(5)
-
 # COMMAND ----------
 
 from pyspark.sql.functions import col
@@ -65,7 +30,7 @@ df = (
     spark.read.format("csv")
     .option("header", "true")
     .option("inferSchema", "true")
-    .load("/Volumes/aqi_cat/bronze_schema/bronze_raw/KA001_new.csv")
+    .load("/Volumes/aqi_cat/bronze_schema/bronze_raw_hourly/bengaluru_hourly.csv")
     )
 
 
@@ -90,8 +55,8 @@ df_selected = df.select([
 df_selected.write
     .format("delta")
     .mode("overwrite")
-    .saveAsTable("aqi_cat.bronze_schema.KA0007")
+    .saveAsTable("aqi_cat.bronze_schema.bengaluru_hourly")
 )
-
+ 
 
 df_selected.head(5)
