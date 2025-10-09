@@ -1,158 +1,4 @@
 # Databricks notebook source
-# from pyspark.sql.types import *
-# from pyspark.sql.functions import *
-
-
-
-# df_bronze = spark.table("aqi_cat.bronze_schema.chennai_combined")
-# df_ref = spark.table("aqi_cat.bronze_schema.chennai_hourly")
-
-
-# def safe_float(colname):
-#     return when(
-#         col(colname).rlike("^[0-9]*\\.?[0-9]+$"), round(col(colname).cast("float"),0)
-#     ).otherwise(None)
-
-
-# bengaluru_combined_transformed = (
-#     df_bronze.withColumnRenamed("Timestamp", "date")
-#     .withColumnRenamed("Location", "loc")
-#     .withColumnRenamed("PM2.5", "pm25")
-#     .withColumnRenamed("PM10", "pm10")
-#     .withColumnRenamed("NO2", "no2")
-#     .withColumnRenamed("NH3", "nh3")
-#     .withColumnRenamed("SO2", "so2")
-#     .withColumnRenamed("CO", "co")
-#     .withColumnRenamed("O3", "o3")
-#     .withColumn("date", to_date("date", "dd-MM-yyyy"))
-#     .withColumn("loc", trim(split("loc", "-").getItem(0)))
-#     .withColumn("pm25", safe_float("pm25"))
-#     .withColumn("pm10", safe_float("pm25"))
-#     .withColumn("no2", safe_float("pm25"))
-#     .withColumn("nh3", safe_float("pm25"))
-#     .withColumn("so2", safe_float("pm25"))
-#     .withColumn("co", safe_float("pm25"))
-#     .withColumn("o3", safe_float("pm25"))
-# )
-
-# bengaluru_hourly_transformed = (
-#     df_ref.withColumnRenamed("Date", "date")
-#     .withColumnRenamed("pm25", "pm25_hourly")
-#     .withColumnRenamed("pm10", "pm10_hourly")
-#     .withColumnRenamed("no2", "no2_hourly")
-#     .withColumnRenamed("so2", "so2_hourly")
-#     .withColumnRenamed("co", "co_hourly")
-#     .withColumnRenamed("ozone", "o3_hourly")
-#     .withColumn("date", to_date("date", "dd-MM-yyyy"))
-#     .withColumn("pm25_hourly", safe_float("pm25_hourly"))
-#     .withColumn("pm10_hourly", safe_float("pm10_hourly"))
-#     .withColumn("no2_hourly", safe_float("no2_hourly"))
-#     .withColumn("so2_hourly", safe_float("so2_hourly"))
-#     .withColumn("co_hourly", safe_float("co_hourly"))
-#     .withColumn("o3_hourly", safe_float("o3_hourly"))
-# )
-
-
-# df_joined = (
-#     bengaluru_combined_transformed
-#     .join(bengaluru_hourly_transformed.alias("r"), on="Date", how="left")
-#     .withColumn("pm25", coalesce(col("pm25"), col("pm25_hourly")))
-#     .withColumn("pm25", format_number("pm25",2))
-#     .withColumn("pm10", format_number("pm10",2))
-#     .withColumn("no2", format_number("no2",2))
-#     .withColumn("so2", format_number("so2",2))
-#     .withColumn("co", format_number("co",2))
-#     .withColumn("o3", format_number("o3",2))
-#     # .select(
-#     #     col("date"),
-#     #     col("loc"),
-#     #     col("pm25"),
-#     #     col("pm10"),
-#     #     col("no2"),
-#     #     col("so2"),
-#     #     col("co"),
-#     #     col("o3")
-#     # )
-# )
-
-
-# display(df_joined)
-
-# COMMAND ----------
-
-from pyspark.sql.types import *
-from pyspark.sql.functions import *
-from pyspark.sql import functions as F
-
-df_category = spark.table("aqi_cat.bronze_schema.aqi_category")
-
-def safe_float(colname):
-    return when(
-        col(colname).rlike("^[0-9]*\\.?[0-9]+$"), col(colname).cast("float")
-    ).otherwise(None)
-
-# numeric_cols = [
-#     'pm25_min','pm25_max','pm10_min','pm10_max','no2_min','no2_max',
-#     'so2_min','so2_max','o3_min','o3_max','co_min','co_max',
-#     'nh3_min','nh3_max','pb_min','pb_max'
-# ]
-
-# for c in numeric_cols:
-#     df = df.withColumn(c, safe_float(c))
-
-
-df = (
-    df_category
-    .withColumn("pm25_min", safe_float("pm25_min"))
-    .withColumn("pm25_max", safe_float("pm25_max"))
-    .withColumn("pm10_min", safe_float("pm10_min"))
-    .withColumn("pm10_max", safe_float("pm10_max"))
-    .withColumn("no2_min", safe_float("no2_min"))
-    .withColumn("no2_max", safe_float("no2_max"))
-    .withColumn("so2_min", safe_float("so2_min"))
-    .withColumn("so2_max", safe_float("so2_max"))
-    .withColumn("o3_min", safe_float("o3_min"))
-    .withColumn("o3_max", safe_float("o3_max"))
-    .withColumn("co_min", safe_float("co_min")) 
-    .withColumn("co_max", safe_float("co_max"))
-    .withColumn("nh3_min", safe_float("nh3_max"))
-    .withColumn("nh3_max", safe_float("nh3_max"))
-    .withColumn("pb_min", safe_float("pb_min"))
-    .withColumn("pb_max", safe_float("pb_max"))
-)
-
-
-display(df)
-
-print(df.dtypes)
-
-
-# COMMAND ----------
-
-df_joined_new = df_joined.join(df,(df_joined["pm25"].between(df["pm25_min"], df["pm25_max"])),"left") 
-       
-df_joined_new = df_joined_new.withColumn("aqi_pm25", 
-     round(((col("aqi_max") - col("aqi_min")) / (col("pm25_max") - col("pm25_min")) 
-     * (col("pm25") - col("pm25_min")) + col("aqi_min")),0))
-
-df_joined_new=df_joined_new.select(
-    "date",
-    "loc",
-    "pm25",
-    "aqi_pm25",
-    "aqi_category",
-    "aqi_min",
-    "aqi_max",
-    "pm25_min",
-    "pm25_max"
-)
-
-
-display(df_joined_new)
-print(df_joined_new.dtypes)
-
-# COMMAND ----------
-
 from pyspark.sql.types import *
 from pyspark.sql.functions import *
 from pyspark.sql import functions as F, Window
@@ -346,8 +192,16 @@ for table in df_combined_list:
         "pm25_max"
     )
 
-    display(df_joined_new)
+    table_name = table+"_aqi_dataset"
+
+    print(table_name)
+
+    (
+    df_joined_new.write
+        .format("delta")
+        .mode("overwrite")
+        .saveAsTable(f"aqi_cat.silver_schema.{table_name}")
+    )
+
+    
         
-
-# COMMAND ----------
-
