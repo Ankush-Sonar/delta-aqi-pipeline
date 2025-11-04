@@ -33,6 +33,13 @@ df_category = (
     .withColumn("pb_max", safe_float("pb_max"))
 )
 
+(
+    df_category.write
+        .format("delta")
+        .mode("overwrite")
+        .saveAsTable("aqi_cat.silver_schema.aqi_category")
+)
+
 display(df_category)
 
 for table in spark.catalog.listTables("aqi_cat.bronze_schema"):
