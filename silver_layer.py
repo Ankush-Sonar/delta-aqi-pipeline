@@ -1,4 +1,5 @@
 # Databricks notebook source
+# Databricks notebook source
 from pyspark.sql.types import *
 from pyspark.sql.functions import *
 from pyspark.sql import functions as F, Window
@@ -177,8 +178,8 @@ for table in df_combined_list:
     # Fill nulls with the computed average
     df_joined = df_joined.withColumn(
         "pm25",
-        F.when(F.col("pm25").isNull(), F.col("prev_avg"))
-        .otherwise(F.col("pm25"))
+        round(F.when(F.col("pm25").isNull(), F.col("prev_avg"))
+        .otherwise(F.col("pm25")),0)
     ).drop("prev_avg")
 
     df_joined_new = df_joined.join(df_category,(df_joined["pm25"].between(df_category["pm25_min"], df_category["pm25_max"])),"left") 
@@ -209,6 +210,8 @@ for table in df_combined_list:
         .mode("overwrite")
         .saveAsTable(f"aqi_cat.silver_schema.{table_name}")
     )
+
+    display(df_joined_new)
 
     
         
