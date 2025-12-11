@@ -24,3 +24,25 @@ Gold Layer: Aggregated views for city-wise AQI trends, daily summaries, and ML-r
 | pipeline.py / pipeline.ipynb | Main Spark ETL orchestrator; notebook for testing       |
 | config.yaml                  | Pipeline configuration (API keys, paths, schemas)       |
 | aqi_dashboard.pbix           | Power BI dashboards for AQI trends and alerts           |
+
+ ## Medallion Architecture
+ 
+Medallion architecture organizes Delta Lake data into three progressive layers: Bronze (raw), Silver (cleaned), and Gold (aggregated). This layered approach ensures data quality evolution while maintaining lineage and auditability.​
+
+### Bronze Layer
+Stores raw AQI data ingested from REST APIs (CPCB/Waqi) in Delta format without transformation. Includes metadata like ingestion timestamp, source URL, and raw JSON payload for full reproducibility.
+- Captures all API responses as-is
+- Schema-on-read with automatic evolution
+- Handles late-arriving data via MERGE operations
+
+### Silver Layer
+Applies data quality rules, cleansing, and normalization to Bronze data. Standardizes AQI metrics (PM2.5, NO2, SO2, CO, O3), resolves duplicates, and enforces business rules.
+
+- Removes null/invalid readings
+- Normalizes city/station names
+- Calculates derived metrics (AQI categories)
+- Partitions by date/city for query performance
+
+### Gold Layer
+Business-ready aggregates and views optimized for analytics and ML. Provides city-wise trends, daily summaries, and station rankings.
+
